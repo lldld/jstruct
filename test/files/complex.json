@@ -1,0 +1,35 @@
+{
+  "int": 3,
+  "float": 4.1,
+  "string": "hello world",
+  "null": null,
+  "boolean-b": false,
+  "array": [3, 4, 5],
+  "array-b": [3.1, 4.2, 5.3],
+  "array-c": ["3.1", "4.2", "5.3"],
+  "array-d": [null, null],
+  "array-e": [false, true, false],
+  "array-f": [{
+    "int": 3,
+    "float": 4.1,
+    "string": "hello world",
+    "null": null,
+    "boolean-b": false,
+    "array": [3, 4, 5]
+  }, {
+    "int": 3,
+    "float": 4.1,
+    "string": "hello world",
+    "null": null,
+    "boolean-b": false,
+    "array": [3, 4, 5]
+  }],
+  "obj": {
+    "int": 3,
+    "float": 4.1,
+    "string": "hello world",
+    "null": null,
+    "boolean-b": false,
+    "array": [3, 4, 5]
+  }
+}

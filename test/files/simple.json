@@ -1,0 +1,20 @@
+{
+  "int": 3,
+  "int-b": -100,
+  "float": 4.1,
+  "float-b": -0.00,
+  "string": "hello world",
+  "null": null,
+  "boolean": true,
+  "boolean-b": false,
+  "obj": {
+    "int": 3,
+    "int-b": -100,
+    "float": 4.1,
+    "float-b": -0.00,
+    "string": "hello world",
+    "null": null,
+    "boolean": true,
+    "boolean-b": false
+  }
+}
