@@ -89,12 +89,7 @@ func formatGoFile(filepath string) error {
 func main() {
 	parseAppParams()
 
-	m, err := json.Parse(*jsonFilePath)
-	if err != nil {
-		panic(err)
-	}
-
-	s, err := json.Generate(*packageName, *structName, m)
+	s, err := json.Generate(*packageName, *structName, *jsonFilePath)
 	if err != nil {
 		panic(err)
 	}

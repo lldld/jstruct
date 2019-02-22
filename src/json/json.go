@@ -9,7 +9,30 @@ import (
 	"strings"
 )
 
-func Parse(filepath string) (map[string]interface{}, error) {
+func Generate(packageName string, structName string, filepath string) (string, error) {
+
+	m, err := parse(filepath)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	var e *error
+
+	sb.WriteString(fmt.Sprintf("package %s \n\n", packageName))
+
+	sb.WriteString(fmt.Sprintf("type %s ", structName))
+	sb.WriteString(parseKeyVal(&e, "", m))
+	sb.WriteRune('\n')
+
+	if e != nil {
+		return "", *e
+	}
+
+	return sb.String(), nil
+}
+
+func parse(filepath string) (map[string]interface{}, error) {
 	bytes, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil, err
@@ -28,26 +51,44 @@ func Parse(filepath string) (map[string]interface{}, error) {
 	return data.(map[string]interface{}), nil
 }
 
-func Generate(packageName string, structName string, m map[string]interface{}) (string, error) {
-
-	var sb strings.Builder
-	var e *error
-
-	sb.WriteString("package ")
-	sb.WriteString(packageName)
-	sb.WriteString("\n\n")
-
-	sb.WriteString("type ")
-	sb.WriteString(structName)
-	sb.WriteString(" ")
-	sb.WriteString(parseKeyVal(&e, "", m))
-
-	if e != nil {
-		return "", *e
+func parseKeyVal(e **error, k string, v interface{}) string {
+	if *e != nil {
+		return ""
 	}
 
-	sb.WriteRune('\n')
-	return sb.String(), nil
+	t := typeOfVal(e, k, v)
+
+	if k == "" {
+		return t + "\n"
+	}
+
+	return fmt.Sprintf("%s %s `json:\"%s\"`\n", nameOfKey(e, k), t, k)
+}
+
+func typeOfVal(e **error, k string, v interface{}) string {
+	if *e != nil {
+		return ""
+	}
+
+	var t string
+	if v == nil {
+		t = "interface {}"
+	} else {
+		t = reflect.TypeOf(v).String()
+	}
+
+	switch t {
+	case "bool", "string", "float64", "interface {}":
+		return t
+	case "[]interface {}":
+		return typeOfArray(e, k, v.([]interface{}))
+	case "map[string]interface {}":
+		return typeOfMap(e, k, v.(map[string]interface{}))
+	default:
+		err := fmt.Errorf("key '%s' has unsupported data type '%s'", k, t)
+		*e = &err
+		return ""
+	}
 }
 
 func typeOfArray(e **error, k string, v []interface{}) string {
@@ -101,66 +142,26 @@ func typeOfMap(e **error, k string, m map[string]interface{}) string {
 	return sb.String()
 }
 
-func parseKeyVal(e **error, k string, v interface{}) string {
-	if *e != nil {
-		return ""
-	}
-
-	t := typeOfVal(e, k, v)
-
-	if k == "" {
-		return t + "\n"
-	}
-
-	return fmt.Sprintf("%s %s `json:\"%s\"`\n", nameOfKey(e, k), t, k)
-}
-
-func typeOfVal(e **error, k string, v interface{}) string {
-	if *e != nil {
-		return ""
-	}
-
-	var t string
-	if v == nil {
-		t = "interface {}"
-	} else {
-		t = reflect.TypeOf(v).String()
-	}
-
-	switch t {
-	case "bool", "string", "float64", "interface {}":
-		return t
-	case "[]interface {}":
-		return typeOfArray(e, k, v.([]interface{}))
-	case "map[string]interface {}":
-		return typeOfMap(e, k, v.(map[string]interface{}))
-	default:
-		err := fmt.Errorf("key '%s' has unsupported data type '%s'", k, t)
-		*e = &err
-		return ""
-	}
-}
-
-func nameOfKey(e **error, key string) string {
+func nameOfKey(e **error, k string) string {
 	if *e != nil {
 		return ""
 	}
 
 	var sb strings.Builder
-	if len(key) < 1 {
+	if len(k) == 0 {
 		err := fmt.Errorf("field name is empty")
 		*e = &err
 		return ""
 	}
 
-	firstChar := []rune(key)[0]
+	firstChar := []rune(k)[0]
 	if !((firstChar >= 'a' && firstChar <= 'z') || (firstChar >= 'A' && firstChar <= 'Z')) {
-		err := fmt.Errorf("first character of key '%s' is not english alphabet", key)
+		err := fmt.Errorf("first character of key '%s' is not english alphabet", k)
 		*e = &err
 		return ""
 	}
 
-	parts := splitByNonAlphabetNonNumber(key)
+	parts := splitByNonAlphabetNonNumber(k)
 	for _, part := range parts {
 		if len(part) == 0 {
 			continue
