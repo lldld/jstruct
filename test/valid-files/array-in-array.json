@@ -1,0 +1,10 @@
+{
+  "int": 3,
+  "int-b": -100,
+  "float": 4.1,
+  "float-b": -0.00,
+  "string": "hello world",
+  "null": null,
+  "boolean": [[{"K123": "string"}]],
+  "boolean-b": false
+}

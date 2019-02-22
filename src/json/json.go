@@ -39,7 +39,9 @@ func Generate(packageName string, structName string, m map[string]interface{}) (
 	sb.WriteString("\n\n")
 
 	sb.WriteString("type ")
-	_generateMap(&e, &sb, structName, m)
+	sb.WriteString(structName)
+	sb.WriteString(" ")
+	sb.WriteString(parseKeyVal(&e, "", m))
 
 	if e != nil {
 		return "", *e
@@ -49,85 +51,109 @@ func Generate(packageName string, structName string, m map[string]interface{}) (
 	return sb.String(), nil
 }
 
-func GenerateMap(e **error, sb *strings.Builder, k string, m map[string]interface{}) {
+func typeOfArray(e **error, k string, v []interface{}) string {
 	if *e != nil {
-		return
+		return ""
 	}
-	_generateMap(e, sb, k, m)
-	sb.WriteString(fmt.Sprintf(" `json:\"%s\"`\n", k))
+
+	var t string
+	for i, _v := range v {
+		if i == 0 {
+			t = typeOfVal(e, k, _v)
+		} else if t != typeOfVal(e, k, _v) {
+			err := fmt.Errorf("not all elements of key '%s' have the same data type '%s'", k, t)
+			*e = &err
+			return ""
+		}
+	}
+
+	return fmt.Sprintf("[]%s", t)
 }
 
-func _generateMap(e **error, sb *strings.Builder, k string, m map[string]interface{}) {
+func typeOfMap(e **error, k string, m map[string]interface{}) string {
 	if *e != nil {
-		return
+		return ""
 	}
-	sb.WriteString(nameOfKey(e, k))
-	sb.WriteString(" struct {\n")
 
+	var sb strings.Builder
+	sb.WriteString("struct {\n")
 	nameToKeyMap := make(map[string]string)
 	names := make([]string, 0, len(m))
-	for k := range m {
-		name := nameOfKey(e, k)
-		if existsKey, exists := nameToKeyMap[name]; exists {
-			err := fmt.Errorf("duplicate field name '%s' for json key: '%s' and '%s'", name, existsKey, k)
+	for _k := range m {
+		name := nameOfKey(e, _k)
+		if _kExists, exists := nameToKeyMap[name]; exists {
+			err := fmt.Errorf("duplicate name '%s' for key '%s' and '%s' of key '%s'", name, _kExists, _k, k)
 			*e = &err
-			return
+			return ""
 		}
 
-		nameToKeyMap[name] = k
+		nameToKeyMap[name] = _k
 		names = append(names, name)
 	}
 	sort.Strings(names)
 
 	for _, name := range names {
-		k := nameToKeyMap[name]
-		v := m[k]
-		var t string
-		if v == nil {
-			t = "interface {}"
-		} else {
-			t = reflect.TypeOf(v).String()
-			if t == "float64" {
-				f := v.(float64)
-				if math.Trunc(f) == f {
-					t = "int64"
-				}
-			}
-		}
-		switch t {
-		case "bool", "string", "int64", "float64", "interface {}":
-			GenerateBase(e, sb, k, t)
-		case "[]interface {}":
-			GenerateArray(e, sb, k, v.([]interface{}))
-		case "map[string]interface {}":
-			GenerateMap(e, sb, k, v.(map[string]interface{}))
-		default:
-			err := fmt.Errorf("field '%s' has invalid data type: %s", k, t)
-			*e = &err
-			return
-		}
+		_k := nameToKeyMap[name]
+		v := m[_k]
+		sb.WriteString(parseKeyVal(e, _k, v))
 	}
 	sb.WriteString("}")
+
+	return sb.String()
 }
 
-func GenerateBase(e **error, sb *strings.Builder, k string, baseType string) {
+func parseKeyVal(e **error, k string, v interface{}) string {
 	if *e != nil {
-		return
+		return ""
 	}
-	sb.WriteString(fmt.Sprintf("%s %s `json:\"%s\"`\n", nameOfKey(e, k), baseType, k))
+
+	t := typeOfVal(e, k, v)
+
+	if k == "" {
+		return t + "\n"
+	}
+
+	return fmt.Sprintf("%s %s `json:\"%s\"`\n", nameOfKey(e, k), t, k)
 }
 
-func GenerateArray(e **error, sb *strings.Builder, k string, v []interface{}) {
+func typeOfVal(e **error, k string, v interface{}) string {
 	if *e != nil {
-		return
+		return ""
 	}
-	// todo
+
+	var t string
+	if v == nil {
+		t = "interface {}"
+	} else {
+		t = reflect.TypeOf(v).String()
+		if t == "float64" {
+			// todo: should change the logic below: 1.0 will be treated as int64
+			f := v.(float64)
+			if math.Trunc(f) == f {
+				t = "int64"
+			}
+		}
+	}
+
+	switch t {
+	case "bool", "string", "int64", "float64", "interface {}":
+		return t
+	case "[]interface {}":
+		return typeOfArray(e, k, v.([]interface{}))
+	case "map[string]interface {}":
+		return typeOfMap(e, k, v.(map[string]interface{}))
+	default:
+		err := fmt.Errorf("key '%s' has unsupported data type '%s'", k, t)
+		*e = &err
+		return ""
+	}
 }
 
 func nameOfKey(e **error, key string) string {
 	if *e != nil {
 		return ""
 	}
+
 	var sb strings.Builder
 	if len(key) < 1 {
 		err := fmt.Errorf("field name is empty")
