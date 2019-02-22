@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"reflect"
 	"sort"
 	"strings"
@@ -126,17 +125,10 @@ func typeOfVal(e **error, k string, v interface{}) string {
 		t = "interface {}"
 	} else {
 		t = reflect.TypeOf(v).String()
-		if t == "float64" {
-			// todo: should change the logic below: 1.0 will be treated as int64
-			f := v.(float64)
-			if math.Trunc(f) == f {
-				t = "int64"
-			}
-		}
 	}
 
 	switch t {
-	case "bool", "string", "int64", "float64", "interface {}":
+	case "bool", "string", "float64", "interface {}":
 		return t
 	case "[]interface {}":
 		return typeOfArray(e, k, v.([]interface{}))
